@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, DollarSign, Download, Image as ImageIcon, X } from 'lucide-react';
-import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import { ClientSession } from '../../types';

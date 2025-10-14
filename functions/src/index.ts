@@ -46,6 +46,11 @@ export const createCheckoutSession = onCall<CheckoutData>(
     }
 
     try {
+      // Log environment check
+      const domain = process.env.DOMAIN || "http://localhost:5173";
+      console.log('Using domain:', domain);
+      console.log('Stripe key available:', !!stripeKey);
+      
       // Create Stripe checkout session
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ["card"],

@@ -67,8 +67,8 @@ export const createCheckoutSession = onCall<CheckoutData>(
           },
         ],
         mode: "payment",
-        success_url: `${process.env.DOMAIN || "http://localhost:5173"}/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${process.env.DOMAIN || "http://localhost:5173"}/services`,
+        success_url: `${domain}/?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${domain}/services`,
         client_reference_id: request.auth.uid,
         metadata: {
           userId: request.auth.uid,

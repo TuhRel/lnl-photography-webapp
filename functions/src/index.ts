@@ -47,7 +47,13 @@ export const createCheckoutSession = onCall<CheckoutData>(
 
     try {
       // Log environment check
-      const domain = process.env.DOMAIN || "http://localhost:5173";
+      const domain = process.env.DOMAIN;
+      if (!domain) {
+        throw new HttpsError(
+          "failed-precondition",
+          "DOMAIN environment variable is required"
+        );
+      }
       console.log('Using domain:', domain);
       console.log('Stripe key available:', !!stripeKey);
       

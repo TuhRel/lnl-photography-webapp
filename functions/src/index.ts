@@ -111,8 +111,11 @@ export const stripeWebhook = onRequest(async (req, res) => {
     await admin.firestore().collection("sessions").add({
       userId: session.metadata?.userId,
       serviceId: session.metadata?.serviceId,
+      serviceName: session.metadata?.serviceName || "Photography Session",
       amount: session.amount_total,
       status: "completed",
+      date: new Date().toISOString().split('T')[0], // Current date in YYYY-MM-DD format
+      photos: [], // Empty array for new sessions
       stripeSessionId: session.id,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });

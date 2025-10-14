@@ -79,6 +79,7 @@ export const createCheckoutSession = onCall<CheckoutData>(
         metadata: {
           userId: request.auth.uid,
           serviceId: serviceId,
+          serviceName: serviceName,
         },
       });
 

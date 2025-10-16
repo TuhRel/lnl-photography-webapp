@@ -175,13 +175,15 @@ export const mockClientSessions: ClientSession[] = [
     serviceId: 'family-session',
     serviceName: 'Family Session',
     date: '2024-01-15',
-    price: 349,
+    amount: 34900, // $349.00 in cents
     status: 'completed',
     photos: [
       'https://images.unsplash.com/photo-1511895426328-dc8714191300?w=800&q=80',
       'https://images.unsplash.com/photo-1609220136736-443140cffec6?w=800&q=80',
       'https://images.unsplash.com/photo-1475503572774-15a45e5d60b9?w=800&q=80'
-    ]
+    ],
+    stripeSessionId: 'cs_test_mock1',
+    createdAt: new Date('2024-01-15T10:00:00Z')
   },
   {
     id: 'session-2',
@@ -189,11 +191,13 @@ export const mockClientSessions: ClientSession[] = [
     serviceId: 'branding-session',
     serviceName: 'Branding Session',
     date: '2023-11-20',
-    price: 399,
+    amount: 39900, // $399.00 in cents
     status: 'completed',
     photos: [
       'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=800&q=80',
       'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&q=80'
-    ]
+    ],
+    stripeSessionId: 'cs_test_mock2',
+    createdAt: new Date('2023-11-20T14:30:00Z')
   }
 ];

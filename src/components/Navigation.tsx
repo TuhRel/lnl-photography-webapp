@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Camera, Menu, X, User, LogOut, LayoutDashboard } from 'lucide-react';
+import { Camera, Menu, X, User, LogOut } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useAdmin } from '../contexts/AdminContext';
 
 interface NavigationProps {
   onNavigate: (section: string) => void;
@@ -12,6 +13,7 @@ interface NavigationProps {
 const Navigation: React.FC<NavigationProps> = ({ onNavigate, currentSection, onAuthClick, onDashboardClick }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { currentUser, logout } = useAuth();
+  const { isAdmin } = useAdmin();
 
   const navItems = [
     { id: 'home', label: 'Home' },
@@ -67,8 +69,8 @@ const Navigation: React.FC<NavigationProps> = ({ onNavigate, currentSection, onA
                   onClick={onDashboardClick}
                   className="flex items-center space-x-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
                 >
-                  <LayoutDashboard className="w-4 h-4" />
-                  <span>Dashboard</span>
+                  <User className="w-4 h-4" />
+                  <span>{isAdmin ? 'Admin' : 'Dashboard'}</span>
                 </button>
                 <button
                   onClick={handleLogout}
@@ -130,7 +132,7 @@ const Navigation: React.FC<NavigationProps> = ({ onNavigate, currentSection, onA
                   }}
                   className="block w-full text-left px-4 py-3 text-sm font-medium text-gray-900 bg-gray-50"
                 >
-                  Dashboard
+                  {isAdmin ? 'Admin Dashboard' : 'Dashboard'}
                 </button>
                 <button
                   onClick={() => {

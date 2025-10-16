@@ -18,11 +18,49 @@ export interface PortfolioItem {
 
 export interface ClientSession {
   id: string;
-  userId: string;
+  userId?: string;
   serviceId: string;
   serviceName: string;
   date: string;
-  price: number;
+  amount: number;
+  status: 'upcoming' | 'processing' | 'completed';
   photos: string[];
-  status: 'completed' | 'upcoming' | 'processing';
+  stripeSessionId: string;
+  createdAt: any;
+}
+
+export interface User {
+  id: string;
+  email: string;
+  displayName?: string;
+  role: 'client' | 'admin';
+  createdAt: string;
+  lastLogin?: string;
+}
+
+export interface AdminStats {
+  totalClients: number;
+  totalSessions: number;
+  totalRevenue: number;
+  upcomingSessions: number;
+  completedSessions: number;
+  portfolioItems: number;
+  activeServices: number;
+}
+
+export interface AboutContent {
+  id: string;
+  title: string;
+  subtitle: string;
+  bio: string[];
+  image: string;
+  credentials: {
+    education: string[];
+    recognition: string[];
+  };
+  values: {
+    title: string;
+    description: string;
+    icon: string;
+  }[];
 }

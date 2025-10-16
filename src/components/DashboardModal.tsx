@@ -43,9 +43,11 @@ const DashboardModal: React.FC<DashboardModalProps> = ({ isOpen, onClose }) => {
               serviceId: data.serviceId,
               serviceName: data.serviceName || 'Photography Session',
               date: data.date || new Date().toISOString().split('T')[0],
-              price: data.amount ? data.amount / 100 : 0,
+              amount: data.amount || 0,
               status: data.status || 'processing',
               photos: data.photos || [],
+              stripeSessionId: data.stripeSessionId || '',
+              createdAt: data.createdAt,
             });
           }
         });
@@ -135,7 +137,7 @@ const DashboardModal: React.FC<DashboardModalProps> = ({ isOpen, onClose }) => {
                   <div>
                     <p className="text-sm text-gray-600 mb-1">Total Spent</p>
                     <p className="text-3xl font-bold text-gray-900">
-                      ${userSessions.reduce((sum, s) => sum + s.price, 0)}
+                      ${userSessions.reduce((sum, s) => sum + (s.amount / 100), 0).toFixed(2)}
                     </p>
                   </div>
                   <div className="p-3 bg-white rounded-full">
@@ -197,7 +199,7 @@ const DashboardModal: React.FC<DashboardModalProps> = ({ isOpen, onClose }) => {
                             </div>
                             <div className="flex items-center">
                               <DollarSign className="w-4 h-4 mr-1" />
-                              ${session.price}
+                              ${(session.amount / 100).toFixed(2)}
                             </div>
                             <div className="flex items-center">
                               <ImageIcon className="w-4 h-4 mr-1" />

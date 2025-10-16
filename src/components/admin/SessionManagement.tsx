@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Calendar, 
   DollarSign, 
-  User, 
+  User as UserIcon, 
   Camera, 
   Filter,
   Search,
@@ -11,12 +11,13 @@ import {
   Trash2,
   Eye
 } from 'lucide-react';
-import { ClientSession } from '../../types';
+import { ClientSession, User } from '../../types';
 import { collection, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 
 const SessionManagement: React.FC = () => {
   const [sessions, setSessions] = useState<ClientSession[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'completed' | 'upcoming' | 'processing'>('all');
   const [loading, setLoading] = useState(true);
@@ -60,9 +61,43 @@ const SessionManagement: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
+  // Fetch users for display names
+  useEffect(() => {
+    const usersRef = collection(db, 'users');
+    
+    const unsubscribe = onSnapshot(usersRef, (snapshot) => {
+      const usersData: User[] = [];
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        usersData.push({
+          id: doc.id,
+          email: data.email || '',
+          displayName: data.displayName || undefined,
+          role: data.role || 'client',
+          createdAt: data.createdAt || new Date().toISOString(),
+          lastLogin: data.lastLogin || undefined,
+        });
+      });
+      setUsers(usersData);
+    }, (error) => {
+      console.error('Error fetching users:', error);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Helper function to get user display name
+  const getUserDisplayName = (userId?: string) => {
+    if (!userId) return 'Unknown User';
+    const user = users.find(u => u.id === userId);
+    return user?.displayName || user?.email?.split('@')[0] || 'Unknown User';
+  };
+
   const filteredSessions = sessions.filter(session => {
+    const userName = getUserDisplayName(session.userId).toLowerCase();
     const matchesSearch = session.serviceName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         session.id.toLowerCase().includes(searchTerm.toLowerCase());
+                         session.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         userName.includes(searchTerm.toLowerCase());
     const matchesStatus = filterStatus === 'all' || session.status === filterStatus;
     return matchesSearch && matchesStatus;
   });
@@ -144,7 +179,7 @@ const SessionManagement: React.FC = () => {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
-              placeholder="Search sessions..."
+              placeholder="Search sessions, clients, or IDs..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent"
@@ -233,13 +268,18 @@ const SessionManagement: React.FC = () => {
                     <div className="flex items-center">
                       <div className="flex-shrink-0 h-8 w-8">
                         <div className="h-8 w-8 rounded-full bg-gray-300 flex items-center justify-center">
-                          <User className="w-4 h-4 text-gray-600" />
+                          <UserIcon className="w-4 h-4 text-gray-600" />
                         </div>
                       </div>
                       <div className="ml-3">
-                        <div className="text-sm text-gray-500">
-                          User ID: {session.userId}
+                        <div className="text-sm font-medium text-gray-900">
+                          {getUserDisplayName(session.userId)}
                         </div>
+                        {session.userId && (
+                          <div className="text-xs text-gray-500">
+                            ID: {session.userId.slice(-8)}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </td>

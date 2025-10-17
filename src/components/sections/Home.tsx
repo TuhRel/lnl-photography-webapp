@@ -1,11 +1,63 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowRight, Camera, Award, Users } from 'lucide-react';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../config/firebase';
+import { HeroContent } from '../../types';
 
 interface HomeProps {
   onNavigate: (section: string) => void;
 }
 
 const Home: React.FC<HomeProps> = ({ onNavigate }) => {
+  const [heroContent, setHeroContent] = useState<HeroContent | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadHeroContent = async () => {
+      try {
+        const heroDoc = await getDoc(doc(db, 'content', 'hero'));
+        if (heroDoc.exists()) {
+          setHeroContent(heroDoc.data() as HeroContent);
+        }
+      } catch (error) {
+        console.error('Error loading hero content:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadHeroContent();
+  }, []);
+
+  // Default content fallback
+  const defaultContent: HeroContent = {
+    id: 'hero-default',
+    title: 'Capturing Moments,\nCreating Memories',
+    subtitle: 'Professional photography that tells your unique story',
+    backgroundImage: 'https://images.unsplash.com/photo-1452587925148-ce544e77e70d?w=1920&q=80',
+    ctaText: 'View Portfolio',
+    secondaryCtaText: 'Book Session'
+  };
+
+  const content = heroContent || defaultContent;
+
+  if (loading) {
+    return (
+      <section id="home" className="min-h-screen pt-16">
+        <div className="relative h-[90vh] flex items-center justify-center overflow-hidden bg-gray-200">
+          <div className="animate-pulse text-center text-gray-400">
+            <div className="w-64 h-8 bg-gray-300 rounded mb-4 mx-auto"></div>
+            <div className="w-96 h-6 bg-gray-300 rounded mb-8 mx-auto"></div>
+            <div className="flex gap-4 justify-center">
+              <div className="w-32 h-12 bg-gray-300 rounded"></div>
+              <div className="w-32 h-12 bg-gray-300 rounded"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section id="home" className="min-h-screen pt-16">
       {/* Hero Section */}
@@ -13,7 +65,7 @@ const Home: React.FC<HomeProps> = ({ onNavigate }) => {
         <div 
           className="absolute inset-0 z-0"
           style={{
-            backgroundImage: 'url(https://images.unsplash.com/photo-1452587925148-ce544e77e70d?w=1920&q=80)',
+            backgroundImage: `url(${content.backgroundImage})`,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
           }}
@@ -23,24 +75,29 @@ const Home: React.FC<HomeProps> = ({ onNavigate }) => {
         
         <div className="relative z-10 text-center text-white px-4 max-w-4xl mx-auto">
           <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
-            Capturing Moments,<br />Creating Memories
+            {content.title.split('\n').map((line, index) => (
+              <React.Fragment key={index}>
+                {line}
+                {index < content.title.split('\n').length - 1 && <br />}
+              </React.Fragment>
+            ))}
           </h1>
           <p className="text-xl md:text-2xl mb-8 text-gray-200 font-light">
-            Professional photography that tells your unique story
+            {content.subtitle}
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button
               onClick={() => onNavigate('portfolio')}
               className="px-8 py-4 bg-white text-gray-900 rounded-lg font-medium hover:bg-gray-100 transition-all transform hover:scale-105 flex items-center justify-center space-x-2"
             >
-              <span>View Portfolio</span>
+              <span>{content.ctaText}</span>
               <ArrowRight className="w-5 h-5" />
             </button>
             <button
               onClick={() => onNavigate('services')}
               className="px-8 py-4 bg-transparent border-2 border-white text-white rounded-lg font-medium hover:bg-white hover:text-gray-900 transition-all transform hover:scale-105"
             >
-              Book a Session
+              {content.secondaryCtaText}
             </button>
           </div>
         </div>

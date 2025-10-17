@@ -20,6 +20,143 @@ import SessionManagement from './SessionManagement';
 import PortfolioEditor from './PortfolioEditor';
 import ServiceEditor from './ServiceEditor';
 import AboutEditor from './AboutEditor';
+import HeroEditor from './HeroEditor';
+
+// Helper Components
+const StatCard: React.FC<{
+  title: string;
+  value: string | number;
+  icon: React.ComponentType<any>;
+  color: string;
+}> = ({ title, value, icon: Icon, color }) => {
+  const colorClasses = {
+    blue: 'bg-blue-100 text-blue-600',
+    green: 'bg-green-100 text-green-600',
+    purple: 'bg-purple-100 text-purple-600',
+    orange: 'bg-orange-100 text-orange-600',
+    yellow: 'bg-yellow-100 text-yellow-600',
+    indigo: 'bg-indigo-100 text-indigo-600',
+  };
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm p-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm text-gray-600 mb-1">{title}</p>
+          <p className="text-3xl font-bold text-gray-900">{value}</p>
+        </div>
+        <div className={`p-3 rounded-full ${colorClasses[color as keyof typeof colorClasses]}`}>
+          <Icon className="w-6 h-6" />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const QuickActionButton: React.FC<{
+  title: string;
+  description: string;
+  icon: React.ComponentType<any>;
+  onClick: () => void;
+}> = ({ title, description, icon: Icon, onClick }) => {
+  return (
+    <button
+      onClick={onClick}
+      className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left"
+    >
+      <div className="flex items-start space-x-3">
+        <div className="p-2 bg-gray-100 rounded-lg">
+          <Icon className="w-5 h-5 text-gray-600" />
+        </div>
+        <div>
+          <h4 className="font-medium text-gray-900">{title}</h4>
+          <p className="text-sm text-gray-600">{description}</p>
+        </div>
+      </div>
+    </button>
+  );
+};
+
+const OverviewTab: React.FC<{ stats: AdminStats }> = ({ stats }) => {
+  return (
+    <div className="space-y-8">
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard
+          title="Total Clients"
+          value={stats.totalClients}
+          icon={Users}
+          color="blue"
+        />
+        <StatCard
+          title="Total Revenue"
+          value={`$${stats.totalRevenue.toLocaleString()}`}
+          icon={DollarSign}
+          color="green"
+        />
+        <StatCard
+          title="Total Sessions"
+          value={stats.totalSessions}
+          icon={Calendar}
+          color="purple"
+        />
+        <StatCard
+          title="Portfolio Items"
+          value={stats.portfolioItems}
+          icon={Camera}
+          color="orange"
+        />
+      </div>
+
+      {/* Secondary Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <StatCard
+          title="Upcoming Sessions"
+          value={stats.upcomingSessions}
+          icon={Clock}
+          color="yellow"
+        />
+        <StatCard
+          title="Completed Sessions"
+          value={stats.completedSessions}
+          icon={CheckCircle}
+          color="green"
+        />
+        <StatCard
+          title="Active Services"
+          value={stats.activeServices}
+          icon={Briefcase}
+          color="indigo"
+        />
+      </div>
+
+      {/* Quick Actions */}
+      <div className="bg-white rounded-lg shadow-sm p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <QuickActionButton
+            title="Add Portfolio Item"
+            description="Upload new photography work"
+            icon={ImageIcon}
+            onClick={() => {}}
+          />
+          <QuickActionButton
+            title="Create Service"
+            description="Add a new photography service"
+            icon={Briefcase}
+            onClick={() => {}}
+          />
+          <QuickActionButton
+            title="View All Clients"
+            description="Manage client accounts"
+            icon={Users}
+            onClick={() => {}}
+          />
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const AdminDashboard: React.FC = () => {
   const { isAdmin, userProfile } = useAdmin();
@@ -142,6 +279,7 @@ const AdminDashboard: React.FC = () => {
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: TrendingUp },
+    { id: 'hero', label: 'Hero', icon: Camera },
     { id: 'clients', label: 'Clients', icon: Users },
     { id: 'sessions', label: 'Sessions', icon: Calendar },
     { id: 'portfolio', label: 'Portfolio', icon: ImageIcon },
@@ -153,6 +291,8 @@ const AdminDashboard: React.FC = () => {
     switch (activeTab) {
       case 'overview':
         return <OverviewTab stats={stats} />;
+      case 'hero':
+        return <HeroEditor />;
       case 'clients':
         return <ClientManagement />;
       case 'sessions':
@@ -209,141 +349,6 @@ const AdminDashboard: React.FC = () => {
         {renderTabContent()}
       </div>
     </div>
-  );
-};
-
-const OverviewTab: React.FC<{ stats: AdminStats }> = ({ stats }) => {
-  return (
-    <div className="space-y-8">
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard
-          title="Total Clients"
-          value={stats.totalClients}
-          icon={Users}
-          color="blue"
-        />
-        <StatCard
-          title="Total Revenue"
-          value={`$${stats.totalRevenue.toLocaleString()}`}
-          icon={DollarSign}
-          color="green"
-        />
-        <StatCard
-          title="Total Sessions"
-          value={stats.totalSessions}
-          icon={Calendar}
-          color="purple"
-        />
-        <StatCard
-          title="Portfolio Items"
-          value={stats.portfolioItems}
-          icon={Camera}
-          color="orange"
-        />
-      </div>
-
-      {/* Secondary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <StatCard
-          title="Upcoming Sessions"
-          value={stats.upcomingSessions}
-          icon={Clock}
-          color="yellow"
-        />
-        <StatCard
-          title="Completed Sessions"
-          value={stats.completedSessions}
-          icon={CheckCircle}
-          color="green"
-        />
-        <StatCard
-          title="Active Services"
-          value={stats.activeServices}
-          icon={Briefcase}
-          color="indigo"
-        />
-      </div>
-
-      {/* Quick Actions */}
-      <div className="bg-white rounded-lg shadow-sm p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <QuickActionButton
-            title="Add Portfolio Item"
-            description="Upload new photography work"
-            icon={ImageIcon}
-            onClick={() => {}}
-          />
-          <QuickActionButton
-            title="Create Service"
-            description="Add a new photography service"
-            icon={Briefcase}
-            onClick={() => {}}
-          />
-          <QuickActionButton
-            title="View All Clients"
-            description="Manage client accounts"
-            icon={Users}
-            onClick={() => {}}
-          />
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const StatCard: React.FC<{
-  title: string;
-  value: string | number;
-  icon: React.ComponentType<any>;
-  color: string;
-}> = ({ title, value, icon: Icon, color }) => {
-  const colorClasses = {
-    blue: 'bg-blue-100 text-blue-600',
-    green: 'bg-green-100 text-green-600',
-    purple: 'bg-purple-100 text-purple-600',
-    orange: 'bg-orange-100 text-orange-600',
-    yellow: 'bg-yellow-100 text-yellow-600',
-    indigo: 'bg-indigo-100 text-indigo-600',
-  };
-
-  return (
-    <div className="bg-white rounded-lg shadow-sm p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm text-gray-600 mb-1">{title}</p>
-          <p className="text-3xl font-bold text-gray-900">{value}</p>
-        </div>
-        <div className={`p-3 rounded-full ${colorClasses[color as keyof typeof colorClasses]}`}>
-          <Icon className="w-6 h-6" />
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const QuickActionButton: React.FC<{
-  title: string;
-  description: string;
-  icon: React.ComponentType<any>;
-  onClick: () => void;
-}> = ({ title, description, icon: Icon, onClick }) => {
-  return (
-    <button
-      onClick={onClick}
-      className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left"
-    >
-      <div className="flex items-start space-x-3">
-        <div className="p-2 bg-gray-100 rounded-lg">
-          <Icon className="w-5 h-5 text-gray-600" />
-        </div>
-        <div>
-          <h4 className="font-medium text-gray-900">{title}</h4>
-          <p className="text-sm text-gray-600">{description}</p>
-        </div>
-      </div>
-    </button>
   );
 };
 

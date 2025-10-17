@@ -5,10 +5,12 @@ import {
   Minus, 
   Heart, 
   Eye, 
-  Zap,
-  Upload
+  Zap
 } from 'lucide-react';
 import { AboutContent } from '../../types';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { db } from '../../config/firebase';
+import ImageUpload from '../common/ImageUpload';
 
 const AboutEditor: React.FC = () => {
   const [aboutContent, setAboutContent] = useState<AboutContent>({
@@ -56,19 +58,36 @@ const AboutEditor: React.FC = () => {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    // Simulate loading from database
-    setTimeout(() => {
-      setLoading(false);
-    }, 1000);
+    const loadAboutContent = async () => {
+      try {
+        const aboutDoc = await getDoc(doc(db, 'content', 'about'));
+        if (aboutDoc.exists()) {
+          const data = aboutDoc.data() as AboutContent;
+          setAboutContent(data);
+        }
+        // If document doesn't exist, keep default content
+      } catch (error) {
+        console.error('Error loading about content:', error);
+        // Keep default content on error
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadAboutContent();
   }, []);
 
   const handleSave = async () => {
     setSaving(true);
-    // Simulate saving to database
-    setTimeout(() => {
-      setSaving(false);
+    try {
+      await setDoc(doc(db, 'content', 'about'), aboutContent);
       alert('About section updated successfully!');
-    }, 1500);
+    } catch (error) {
+      console.error('Error saving about content:', error);
+      alert('Error saving changes. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const addBioParagraph = () => {
@@ -246,26 +265,16 @@ const AboutEditor: React.FC = () => {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Profile Image
             </label>
-            <div className="aspect-square w-48 rounded-lg overflow-hidden bg-gray-100 border-2 border-dashed border-gray-300 mb-3">
-              {aboutContent.image ? (
-                <img
-                  src={aboutContent.image}
-                  alt="Profile"
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex flex-col items-center justify-center">
-                  <Upload className="w-8 h-8 text-gray-400 mb-2" />
-                  <p className="text-sm text-gray-500">Upload Image</p>
-                </div>
-              )}
-            </div>
-            <input
-              type="url"
-              value={aboutContent.image}
-              onChange={(e) => setAboutContent(prev => ({ ...prev, image: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent"
-              placeholder="https://example.com/image.jpg"
+            
+            <ImageUpload
+              currentImageUrl={aboutContent.image}
+              onImageChange={(url) => setAboutContent(prev => ({ ...prev, image: url }))}
+              folder="about"
+              aspectRatio="square"
+              maxWidth={192}
+              maxHeight={192}
+              placeholder="Upload profile image"
+              className="w-48"
             />
           </div>
         </div>

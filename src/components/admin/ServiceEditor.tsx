@@ -11,7 +11,9 @@ import {
   Minus
 } from 'lucide-react';
 import { Service } from '../../types';
-import { services as initialServices } from '../../data/mockData';
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import { db } from '../../config/firebase';
+import ImageUpload from '../common/ImageUpload';
 
 const ServiceEditor: React.FC = () => {
   const [services, setServices] = useState<Service[]>([]);
@@ -20,11 +22,34 @@ const ServiceEditor: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate loading from database
-    setTimeout(() => {
-      setServices(initialServices);
-      setLoading(false);
-    }, 1000);
+    const loadServices = async () => {
+      try {
+        const servicesCollection = collection(db, 'services');
+        const servicesSnapshot = await getDocs(servicesCollection);
+        const servicesList: Service[] = [];
+        
+        servicesSnapshot.forEach((doc) => {
+          const data = doc.data();
+          servicesList.push({
+            id: doc.id,
+            title: data.title || '',
+            description: data.description || '',
+            price: data.price || 0,
+            duration: data.duration || '',
+            features: data.features || [],
+            image: data.image || ''
+          });
+        });
+        
+        setServices(servicesList);
+      } catch (error) {
+        console.error('Error loading services:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadServices();
   }, []);
 
   const handleAddService = () => {
@@ -46,26 +71,60 @@ const ServiceEditor: React.FC = () => {
     setIsEditing(true);
   };
 
-  const handleSaveService = () => {
+  const handleSaveService = async () => {
     if (!editingService) return;
 
-    if (services.find(service => service.id === editingService.id)) {
-      // Update existing service
-      setServices(prev => prev.map(service => 
-        service.id === editingService.id ? editingService : service
-      ));
-    } else {
-      // Add new service
-      setServices(prev => [...prev, editingService]);
-    }
+    try {
+      const existingService = services.find(service => service.id === editingService.id);
+      
+      if (existingService) {
+        // Update existing service
+        await updateDoc(doc(db, 'services', editingService.id), {
+          title: editingService.title,
+          description: editingService.description,
+          price: editingService.price,
+          duration: editingService.duration,
+          features: editingService.features,
+          image: editingService.image
+        });
+        
+        setServices(prev => prev.map(service => 
+          service.id === editingService.id ? editingService : service
+        ));
+      } else {
+        // Add new service
+        const docRef = await addDoc(collection(db, 'services'), {
+          title: editingService.title,
+          description: editingService.description,
+          price: editingService.price,
+          duration: editingService.duration,
+          features: editingService.features,
+          image: editingService.image
+        });
+        
+        const newService = { ...editingService, id: docRef.id };
+        setServices(prev => [...prev, newService]);
+      }
 
-    setIsEditing(false);
-    setEditingService(null);
+      setIsEditing(false);
+      setEditingService(null);
+      alert('Service saved successfully!');
+    } catch (error) {
+      console.error('Error saving service:', error);
+      alert('Error saving service. Please try again.');
+    }
   };
 
-  const handleDeleteService = (id: string) => {
+  const handleDeleteService = async (id: string) => {
     if (confirm('Are you sure you want to delete this service?')) {
-      setServices(prev => prev.filter(service => service.id !== id));
+      try {
+        await deleteDoc(doc(db, 'services', id));
+        setServices(prev => prev.filter(service => service.id !== id));
+        alert('Service deleted successfully!');
+      } catch (error) {
+        console.error('Error deleting service:', error);
+        alert('Error deleting service. Please try again.');
+      }
     }
   };
 
@@ -246,35 +305,24 @@ const ServiceEditor: React.FC = () => {
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Left Column - Image Preview */}
+                {/* Left Column - Image Upload */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Service Image
                   </label>
-                  <div className="aspect-video rounded-lg overflow-hidden bg-gray-100 border-2 border-dashed border-gray-300 mb-4">
-                    {editingService.image ? (
-                      <img
-                        src={editingService.image}
-                        alt="Preview"
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <div className="text-center">
-                          <DollarSign className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-                          <p className="text-sm text-gray-500">Service Image Preview</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
                   
-                  <input
-                    type="url"
-                    value={editingService.image}
-                    onChange={(e) => setEditingService(prev => prev ? { ...prev, image: e.target.value } : null)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent"
-                    placeholder="https://example.com/image.jpg"
+                  <ImageUpload
+                    currentImageUrl={editingService.image}
+                    onImageChange={(url) => setEditingService(prev => prev ? { ...prev, image: url } : null)}
+                    folder="services"
+                    aspectRatio="video"
+                    placeholder="Upload service showcase image"
+                    className="w-full"
                   />
+                  
+                  <p className="text-xs text-gray-500 mt-2">
+                    Recommended: High-quality image showcasing your service
+                  </p>
                 </div>
 
                 {/* Right Column - Form Fields */}

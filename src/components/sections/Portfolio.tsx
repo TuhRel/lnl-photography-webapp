@@ -1,16 +1,67 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
-import { portfolioItems } from '../../data/mockData';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '../../config/firebase';
+import { PortfolioItem } from '../../types';
 
 const Portfolio: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [portfolioItems, setPortfolioItems] = useState<PortfolioItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const categories = ['All', 'Portrait', 'Family', 'Wedding', 'Branding', 'Creative', 'Studio'];
+
+  useEffect(() => {
+    const loadPortfolioItems = async () => {
+      try {
+        const portfolioCollection = collection(db, 'portfolio');
+        const portfolioSnapshot = await getDocs(portfolioCollection);
+        const items: PortfolioItem[] = [];
+        
+        portfolioSnapshot.forEach((doc) => {
+          const data = doc.data();
+          items.push({
+            id: doc.id,
+            title: data.title || '',
+            category: data.category || '',
+            image: data.image || '',
+            images: data.images || []
+          });
+        });
+        
+        setPortfolioItems(items);
+      } catch (error) {
+        console.error('Error loading portfolio items:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadPortfolioItems();
+  }, []);
 
   const filteredItems = selectedCategory === 'All'
     ? portfolioItems
     : portfolioItems.filter(item => item.category === selectedCategory);
+
+  if (loading) {
+    return (
+      <section id="portfolio" className="min-h-screen pt-24 pb-20 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">Portfolio</h2>
+            <div className="w-20 h-1 bg-gray-900 mx-auto mt-6"></div>
+          </div>
+          <div className="animate-pulse grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="aspect-square bg-gray-200 rounded-lg"></div>
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section id="portfolio" className="min-h-screen pt-24 pb-20 bg-white">

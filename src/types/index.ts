@@ -64,3 +64,12 @@ export interface AboutContent {
     icon: string;
   }[];
 }
+
+export interface HeroContent {
+  id: string;
+  title: string;
+  subtitle: string;
+  backgroundImage: string;
+  ctaText: string;
+  secondaryCtaText: string;
+}

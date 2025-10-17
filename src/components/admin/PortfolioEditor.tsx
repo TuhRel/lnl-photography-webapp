@@ -4,14 +4,15 @@ import {
   Edit, 
   Trash2, 
   Image as ImageIcon, 
-  Upload,
   Search,
   Filter,
   Save,
   X
 } from 'lucide-react';
 import { PortfolioItem } from '../../types';
-import { portfolioItems as initialPortfolioItems } from '../../data/mockData';
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import { db } from '../../config/firebase';
+import ImageUpload from '../common/ImageUpload';
 
 const PortfolioEditor: React.FC = () => {
   const [portfolioItems, setPortfolioItems] = useState<PortfolioItem[]>([]);
@@ -24,11 +25,32 @@ const PortfolioEditor: React.FC = () => {
   const categories = ['All', 'Portrait', 'Family', 'Wedding', 'Branding', 'Creative', 'Studio'];
 
   useEffect(() => {
-    // Simulate loading from database
-    setTimeout(() => {
-      setPortfolioItems(initialPortfolioItems);
-      setLoading(false);
-    }, 1000);
+    const loadPortfolioItems = async () => {
+      try {
+        const portfolioCollection = collection(db, 'portfolio');
+        const portfolioSnapshot = await getDocs(portfolioCollection);
+        const items: PortfolioItem[] = [];
+        
+        portfolioSnapshot.forEach((doc) => {
+          const data = doc.data();
+          items.push({
+            id: doc.id,
+            title: data.title || '',
+            category: data.category || '',
+            image: data.image || '',
+            images: data.images || []
+          });
+        });
+        
+        setPortfolioItems(items);
+      } catch (error) {
+        console.error('Error loading portfolio items:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadPortfolioItems();
   }, []);
 
   const filteredItems = portfolioItems.filter(item => {
@@ -55,26 +77,56 @@ const PortfolioEditor: React.FC = () => {
     setIsEditing(true);
   };
 
-  const handleSaveItem = () => {
+  const handleSaveItem = async () => {
     if (!editingItem) return;
 
-    if (portfolioItems.find(item => item.id === editingItem.id)) {
-      // Update existing item
-      setPortfolioItems(prev => prev.map(item => 
-        item.id === editingItem.id ? editingItem : item
-      ));
-    } else {
-      // Add new item
-      setPortfolioItems(prev => [...prev, editingItem]);
-    }
+    try {
+      const existingItem = portfolioItems.find(item => item.id === editingItem.id);
+      
+      if (existingItem) {
+        // Update existing item
+        await updateDoc(doc(db, 'portfolio', editingItem.id), {
+          title: editingItem.title,
+          category: editingItem.category,
+          image: editingItem.image,
+          images: editingItem.images || []
+        });
+        
+        setPortfolioItems(prev => prev.map(item => 
+          item.id === editingItem.id ? editingItem : item
+        ));
+      } else {
+        // Add new item
+        const docRef = await addDoc(collection(db, 'portfolio'), {
+          title: editingItem.title,
+          category: editingItem.category,
+          image: editingItem.image,
+          images: editingItem.images || []
+        });
+        
+        const newItem = { ...editingItem, id: docRef.id };
+        setPortfolioItems(prev => [...prev, newItem]);
+      }
 
-    setIsEditing(false);
-    setEditingItem(null);
+      setIsEditing(false);
+      setEditingItem(null);
+      alert('Portfolio item saved successfully!');
+    } catch (error) {
+      console.error('Error saving portfolio item:', error);
+      alert('Error saving portfolio item. Please try again.');
+    }
   };
 
-  const handleDeleteItem = (id: string) => {
+  const handleDeleteItem = async (id: string) => {
     if (confirm('Are you sure you want to delete this portfolio item?')) {
-      setPortfolioItems(prev => prev.filter(item => item.id !== id));
+      try {
+        await deleteDoc(doc(db, 'portfolio', id));
+        setPortfolioItems(prev => prev.filter(item => item.id !== id));
+        alert('Portfolio item deleted successfully!');
+      } catch (error) {
+        console.error('Error deleting portfolio item:', error);
+        alert('Error deleting portfolio item. Please try again.');
+      }
     }
   };
 
@@ -234,70 +286,55 @@ const PortfolioEditor: React.FC = () => {
               </div>
 
               <div className="space-y-6">
-                {/* Image Preview */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Image Preview
-                  </label>
-                  <div className="aspect-square w-48 rounded-lg overflow-hidden bg-gray-100 border-2 border-dashed border-gray-300">
-                    {editingItem.image ? (
-                      <img
-                        src={editingItem.image}
-                        alt="Preview"
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex flex-col items-center justify-center">
-                        <Upload className="w-8 h-8 text-gray-400 mb-2" />
-                        <p className="text-sm text-gray-500">Upload Image</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
                 {/* Form Fields */}
-                <div className="grid grid-cols-1 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Left Column - Image */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Title
+                      Portfolio Image
                     </label>
-                    <input
-                      type="text"
-                      value={editingItem.title}
-                      onChange={(e) => setEditingItem(prev => prev ? { ...prev, title: e.target.value } : null)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent"
-                      placeholder="Enter portfolio item title"
+                    
+                    <ImageUpload
+                      currentImageUrl={editingItem.image}
+                      onImageChange={(url) => setEditingItem(prev => prev ? { ...prev, image: url } : null)}
+                      folder="portfolio"
+                      aspectRatio="square"
+                      placeholder="Upload portfolio image"
+                      className="w-full"
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Category
-                    </label>
-                    <select
-                      value={editingItem.category}
-                      onChange={(e) => setEditingItem(prev => prev ? { ...prev, category: e.target.value } : null)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent"
-                    >
-                      {categories.slice(1).map(category => (
-                        <option key={category} value={category}>
-                          {category}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  {/* Right Column - Details */}
+                  <div className="space-y-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Title
+                      </label>
+                      <input
+                        type="text"
+                        value={editingItem.title}
+                        onChange={(e) => setEditingItem(prev => prev ? { ...prev, title: e.target.value } : null)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                        placeholder="Enter portfolio item title"
+                      />
+                    </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Image URL
-                    </label>
-                    <input
-                      type="url"
-                      value={editingItem.image}
-                      onChange={(e) => setEditingItem(prev => prev ? { ...prev, image: e.target.value } : null)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent"
-                      placeholder="https://example.com/image.jpg"
-                    />
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Category
+                      </label>
+                      <select
+                        value={editingItem.category}
+                        onChange={(e) => setEditingItem(prev => prev ? { ...prev, category: e.target.value } : null)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                      >
+                        {categories.slice(1).map(category => (
+                          <option key={category} value={category}>
+                            {category}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                 </div>
               </div>

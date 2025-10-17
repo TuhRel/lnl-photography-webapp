@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Check, Clock, DollarSign } from 'lucide-react';
-import { services } from '../../data/mockData';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '../../config/firebase';
+import { Service } from '../../types';
 import { createCheckoutSession } from '../../config/stripe';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -10,6 +12,39 @@ interface ServicesProps {
 
 const Services: React.FC<ServicesProps> = ({ onAuthClick }) => {
   const { currentUser } = useAuth();
+  const [services, setServices] = useState<Service[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadServices = async () => {
+      try {
+        const servicesCollection = collection(db, 'services');
+        const servicesSnapshot = await getDocs(servicesCollection);
+        const servicesList: Service[] = [];
+        
+        servicesSnapshot.forEach((doc) => {
+          const data = doc.data();
+          servicesList.push({
+            id: doc.id,
+            title: data.title || '',
+            description: data.description || '',
+            price: data.price || 0,
+            duration: data.duration || '',
+            features: data.features || [],
+            image: data.image || ''
+          });
+        });
+        
+        setServices(servicesList);
+      } catch (error) {
+        console.error('Error loading services:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadServices();
+  }, []);
 
   const handleBooking = async (serviceId: string, price: number, serviceName: string) => {
     if (!currentUser) {
@@ -25,6 +60,31 @@ const Services: React.FC<ServicesProps> = ({ onAuthClick }) => {
       alert('There was an error processing your booking. Please try again.');
     }
   };
+
+  if (loading) {
+    return (
+      <section id="services" className="min-h-screen pt-24 pb-20 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">Services</h2>
+            <div className="w-20 h-1 bg-gray-900 mx-auto mt-6"></div>
+          </div>
+          <div className="animate-pulse grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="bg-white rounded-lg overflow-hidden shadow-lg">
+                <div className="h-64 bg-gray-200"></div>
+                <div className="p-6 space-y-4">
+                  <div className="h-6 bg-gray-200 rounded"></div>
+                  <div className="h-4 bg-gray-200 rounded"></div>
+                  <div className="h-4 bg-gray-200 rounded"></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section id="services" className="min-h-screen pt-24 pb-20 bg-gray-50">

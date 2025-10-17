@@ -1,0 +1,67 @@
+// 🔒 Firebase Storage Security Rules for Photography Portfolio
+// Copy and paste these rules into Firebase Console → Storage → Rules
+
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // 🖼️ IMAGES FOLDER - Organized by content type
+    match /images/{folder}/{imageId} {
+      
+      // PUBLIC READ ACCESS
+      // All images can be viewed by anyone (for website display)
+      allow read: if true;
+      
+      // ADMIN WRITE ACCESS
+      // Only admins can upload, update, or delete images
+      allow write: if isAdmin();
+      
+      // FILE VALIDATION
+      // Ensure uploaded files are valid images under size limit
+      allow write: if isAdmin() && 
+                   isValidImage() && 
+                   isValidSize();
+    }
+    
+    // 🔧 HELPER FUNCTIONS
+    
+    // Check if user is admin
+    function isAdmin() {
+      return request.auth != null && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Validate image file type
+    function isValidImage() {
+      return resource == null || // Allow deletion
+             request.resource.contentType.matches('image/.*');
+    }
+    
+    // Validate file size (max 5MB)
+    function isValidSize() {
+      return resource == null || // Allow deletion
+             request.resource.size <= 5 * 1024 * 1024;
+    }
+  }
+}
+
+// 📁 FOLDER STRUCTURE:
+// 
+// images/
+//   ├── hero/          - Hero section background images
+//   ├── about/         - About page profile images  
+//   ├── portfolio/     - Portfolio item images
+//   ├── services/      - Service showcase images
+//   └── profiles/      - User profile pictures
+//
+// 🔑 PERMISSIONS:
+// - Public: Can view all images (for website display)
+// - Admins: Can upload/edit/delete images in any folder
+// - File Types: Only image files allowed (image/*)
+// - Size Limit: Maximum 5MB per file
+//
+// 🚀 TO APPLY THESE RULES:
+// 1. Go to Firebase Console → Storage → Rules
+// 2. Replace existing rules with the content above  
+// 3. Click "Publish" to apply the changes

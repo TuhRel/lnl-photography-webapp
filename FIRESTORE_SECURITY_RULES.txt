@@ -1,0 +1,106 @@
+// 🔒 Complete Firestore Security Rules for Photography Portfolio
+// Copy and paste these rules into Firebase Console → Firestore → Rules
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 📄 CONTENT COLLECTIONS (Public read, Admin write)
+    // Used by: About, Hero, and other CMS content
+    match /content/{document} {
+      // Public read access for website visitors
+      allow read: if true;
+      
+      // Only admins can write/update content
+      allow write: if isAdmin();
+    }
+    
+    // 🖼️ PORTFOLIO COLLECTION (Public read, Admin write)
+    // Used by: Portfolio section and PortfolioEditor
+    match /portfolio/{document} {
+      // Public read access for portfolio display
+      allow read: if true;
+      
+      // Only admins can add/edit/delete portfolio items
+      allow write: if isAdmin();
+    }
+    
+    // 💼 SERVICES COLLECTION (Public read, Admin write)
+    // Used by: Services section and ServiceEditor
+    match /services/{document} {
+      // Public read access for services display and booking
+      allow read: if true;
+      
+      // Only admins can add/edit/delete services
+      allow write: if isAdmin();
+    }
+    
+    // 👥 USERS COLLECTION (Restricted access)
+    // Used by: User management and authentication
+    match /users/{userId} {
+      // Users can read their own profile
+      allow read: if request.auth != null && request.auth.uid == userId;
+      
+      // Users can update their own profile (limited fields)
+      allow update: if request.auth != null && 
+                   request.auth.uid == userId &&
+                   onlyUpdatingAllowedFields(['displayName', 'lastLogin']);
+      
+      // Admins can read all user profiles
+      allow read: if isAdmin();
+      
+      // Only admins can create users or change roles
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin();
+    }
+    
+    // 📅 SESSIONS COLLECTION (User and Admin access)
+    // Used by: Client dashboard and SessionManagement
+    match /sessions/{sessionId} {
+      // Users can read their own sessions
+      allow read: if request.auth != null && 
+                 (request.auth.uid == resource.data.userId || isAdmin());
+      
+      // Users can create their own sessions (booking)
+      allow create: if request.auth != null && 
+                   request.auth.uid == request.resource.data.userId;
+      
+      // Only admins can update/delete sessions
+      allow update, delete: if isAdmin();
+    }
+    
+    // 🔧 HELPER FUNCTIONS
+    
+    // Check if user is admin
+    function isAdmin() {
+      return request.auth != null && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Check if only allowed fields are being updated
+    function onlyUpdatingAllowedFields(allowedFields) {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(allowedFields.toSet());
+    }
+  }
+}
+
+// 📋 COLLECTIONS SUMMARY:
+// 
+// ✅ content/about     - About page content (Public read, Admin write)
+// ✅ content/hero      - Hero section content (Public read, Admin write)  
+// ✅ portfolio/        - Portfolio items (Public read, Admin write)
+// ✅ services/         - Photography services (Public read, Admin write)
+// ✅ users/           - User accounts (Restricted access)
+// ✅ sessions/        - Client sessions (User/Admin access)
+//
+// 🔑 PERMISSIONS:
+// - Public: Can read content, portfolio, services
+// - Users: Can read/update own profile, read own sessions, create bookings
+// - Admins: Full access to all collections
+//
+// 🚀 TO APPLY THESE RULES:
+// 1. Go to Firebase Console → Firestore Database → Rules
+// 2. Replace existing rules with the content above
+// 3. Click "Publish" to apply the changes

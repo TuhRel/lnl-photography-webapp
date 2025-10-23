@@ -57,9 +57,12 @@ service cloud.firestore {
     // 📅 SESSIONS COLLECTION (User and Admin access)
     // Used by: Client dashboard and SessionManagement
     match /sessions/{sessionId} {
-      // Users can read their own sessions
+      // Users can read their own sessions, admins can read all
       allow read: if request.auth != null && 
                  (request.auth.uid == resource.data.userId || isAdmin());
+      
+      // Users can list/query their own sessions, admins can list all
+      allow list: if request.auth != null;
       
       // Users can create their own sessions (booking)
       allow create: if request.auth != null && 

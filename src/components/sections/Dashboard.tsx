@@ -16,12 +16,14 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     const fetchSessions = async () => {
       if (!currentUser) {
+        console.log('❌ No current user found');
         setUserSessions([]);
         setLoading(false);
         return;
       }
 
       try {
+        console.log('🔍 Fetching sessions for user:', currentUser.uid);
         const sessionsRef = collection(db, 'sessions');
         const q = query(
           sessionsRef,
@@ -31,8 +33,11 @@ const Dashboard: React.FC = () => {
         const querySnapshot = await getDocs(q);
         const sessions: ClientSession[] = [];
         
+        console.log('📊 Total documents found:', querySnapshot.size);
+        
         querySnapshot.forEach((doc) => {
           const data = doc.data();
+          console.log('📄 Session document:', doc.id, data);
           sessions.push({
             id: doc.id,
             userId: data.userId,
@@ -55,9 +60,14 @@ const Dashboard: React.FC = () => {
         });
         
         setUserSessions(sessions);
-        console.log('✅ Loaded', sessions.length, 'session(s) from Firestore');
+        console.log('✅ Loaded', sessions.length, 'session(s) for user', currentUser.uid);
+        
+        // Also check if there are any sessions at all in the collection
+        const allSessionsSnapshot = await getDocs(collection(db, 'sessions'));
+        console.log('📊 Total sessions in database:', allSessionsSnapshot.size);
+        
       } catch (error) {
-        console.error('Error fetching sessions:', error);
+        console.error('❌ Error fetching sessions:', error);
       } finally {
         setLoading(false);
       }
@@ -65,6 +75,7 @@ const Dashboard: React.FC = () => {
 
     fetchSessions();
   }, [currentUser]);
+
 
   const getStatusColor = (status: string) => {
     switch (status) {

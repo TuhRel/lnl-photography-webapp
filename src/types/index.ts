@@ -14,6 +14,7 @@ export interface PortfolioItem {
   category: string;
   image: string;
   images?: string[];
+  featured?: boolean;
 }
 
 export interface ClientSession {

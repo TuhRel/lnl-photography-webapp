@@ -7,7 +7,8 @@ import {
   Search,
   Filter,
   Save,
-  X
+  X,
+  Star
 } from 'lucide-react';
 import { PortfolioItem } from '../../types';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
@@ -38,7 +39,8 @@ const PortfolioEditor: React.FC = () => {
             title: data.title || '',
             category: data.category || '',
             image: data.image || '',
-            images: data.images || []
+            images: data.images || [],
+            featured: data.featured || false
           });
         });
         
@@ -77,6 +79,36 @@ const PortfolioEditor: React.FC = () => {
     setIsEditing(true);
   };
 
+  const handleToggleFeatured = async (item: PortfolioItem) => {
+    const currentFeaturedCount = portfolioItems.filter(p => p.featured).length;
+    
+    // If trying to feature and already have 3 featured items
+    if (!item.featured && currentFeaturedCount >= 3) {
+      alert('You can only feature up to 3 portfolio items. Please unfeature another item first.');
+      return;
+    }
+
+    try {
+      const newFeaturedStatus = !item.featured;
+      
+      // Update in Firestore
+      await updateDoc(doc(db, 'portfolio', item.id), {
+        featured: newFeaturedStatus
+      });
+      
+      // Update local state
+      setPortfolioItems(prev => prev.map(p => 
+        p.id === item.id ? { ...p, featured: newFeaturedStatus } : p
+      ));
+      
+      const action = newFeaturedStatus ? 'featured' : 'unfeatured';
+      alert(`Portfolio item ${action} successfully!`);
+    } catch (error) {
+      console.error('Error updating featured status:', error);
+      alert('Error updating featured status. Please try again.');
+    }
+  };
+
   const handleSaveItem = async () => {
     if (!editingItem) return;
 
@@ -89,7 +121,8 @@ const PortfolioEditor: React.FC = () => {
           title: editingItem.title,
           category: editingItem.category,
           image: editingItem.image,
-          images: editingItem.images || []
+          images: editingItem.images || [],
+          featured: editingItem.featured || false
         });
         
         setPortfolioItems(prev => prev.map(item => 
@@ -101,7 +134,8 @@ const PortfolioEditor: React.FC = () => {
           title: editingItem.title,
           category: editingItem.category,
           image: editingItem.image,
-          images: editingItem.images || []
+          images: editingItem.images || [],
+          featured: editingItem.featured || false
         });
         
         const newItem = { ...editingItem, id: docRef.id };
@@ -160,6 +194,15 @@ const PortfolioEditor: React.FC = () => {
             <p className="text-sm text-gray-600 mt-1">
               Manage your photography portfolio items
             </p>
+            <div className="flex items-center space-x-4 mt-2">
+              <span className="text-sm text-gray-500">
+                Total: {portfolioItems.length} items
+              </span>
+              <span className="text-sm text-yellow-600 flex items-center space-x-1">
+                <Star className="w-4 h-4 fill-current" />
+                <span>Featured: {portfolioItems.filter(item => item.featured).length}/3</span>
+              </span>
+            </div>
           </div>
           <button
             onClick={handleAddItem}
@@ -222,9 +265,26 @@ const PortfolioEditor: React.FC = () => {
                   </div>
                 )}
                 
+                {/* Featured Badge */}
+                {item.featured && (
+                  <div className="absolute top-2 left-2 bg-yellow-500 text-white px-2 py-1 rounded-full text-xs font-medium flex items-center space-x-1">
+                    <Star className="w-3 h-3 fill-current" />
+                    <span>Featured</span>
+                  </div>
+                )}
+                
                 {/* Overlay */}
                 <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all duration-300 flex items-center justify-center">
                   <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex space-x-2">
+                    <button
+                      onClick={() => handleToggleFeatured(item)}
+                      className={`p-2 rounded-full hover:bg-gray-100 transition-colors ${
+                        item.featured ? 'bg-yellow-500 text-white' : 'bg-white text-gray-700'
+                      }`}
+                      title={item.featured ? 'Remove from featured' : 'Add to featured'}
+                    >
+                      <Star className={`w-4 h-4 ${item.featured ? 'fill-current' : ''}`} />
+                    </button>
                     <button
                       onClick={() => handleEditItem(item)}
                       className="p-2 bg-white rounded-full hover:bg-gray-100 transition-colors"

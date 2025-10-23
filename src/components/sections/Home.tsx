@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowRight, Camera, Award, Users } from 'lucide-react';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
 import { db } from '../../config/firebase';
-import { HeroContent } from '../../types';
+import { HeroContent, PortfolioItem } from '../../types';
 
 interface HomeProps {
   onNavigate: (section: string) => void;
@@ -10,23 +10,46 @@ interface HomeProps {
 
 const Home: React.FC<HomeProps> = ({ onNavigate }) => {
   const [heroContent, setHeroContent] = useState<HeroContent | null>(null);
+  const [featuredItems, setFeaturedItems] = useState<PortfolioItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const loadHeroContent = async () => {
+    const loadContent = async () => {
       try {
+        // Load hero content
         const heroDoc = await getDoc(doc(db, 'content', 'hero'));
         if (heroDoc.exists()) {
           setHeroContent(heroDoc.data() as HeroContent);
         }
+
+        // Load featured portfolio items
+        const portfolioCollection = collection(db, 'portfolio');
+        const portfolioSnapshot = await getDocs(portfolioCollection);
+        const featured: PortfolioItem[] = [];
+        
+        portfolioSnapshot.forEach((doc) => {
+          const data = doc.data();
+          if (data.featured) {
+            featured.push({
+              id: doc.id,
+              title: data.title || '',
+              category: data.category || '',
+              image: data.image || '',
+              images: data.images || [],
+              featured: data.featured || false
+            });
+          }
+        });
+        
+        setFeaturedItems(featured);
       } catch (error) {
-        console.error('Error loading hero content:', error);
+        console.error('Error loading content:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    loadHeroContent();
+    loadContent();
   }, []);
 
   // Default content fallback
@@ -149,24 +172,47 @@ const Home: React.FC<HomeProps> = ({ onNavigate }) => {
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[
-              'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=800&q=80',
-              'https://images.unsplash.com/photo-1511895426328-dc8714191300?w=800&q=80',
-              'https://images.unsplash.com/photo-1606800052052-a08af7148866?w=800&q=80'
-            ].map((img, idx) => (
-              <div 
-                key={idx}
-                className="relative h-80 rounded-lg overflow-hidden group cursor-pointer"
-                onClick={() => onNavigate('portfolio')}
-              >
-                <img 
-                  src={img} 
-                  alt={`Featured ${idx + 1}`}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                />
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-300"></div>
-              </div>
-            ))}
+            {featuredItems.length > 0 ? (
+              featuredItems.map((item) => (
+                <div 
+                  key={item.id}
+                  className="relative h-80 rounded-lg overflow-hidden group cursor-pointer"
+                  onClick={() => onNavigate('portfolio')}
+                >
+                  <img 
+                    src={item.image} 
+                    alt={item.title}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                  />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-300 flex items-end">
+                    <div className="p-6 text-white transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
+                      <h3 className="text-xl font-semibold mb-1">{item.title}</h3>
+                      <p className="text-gray-200 text-sm">{item.category}</p>
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              // Fallback content when no featured items are selected
+              [
+                'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=800&q=80',
+                'https://images.unsplash.com/photo-1511895426328-dc8714191300?w=800&q=80',
+                'https://images.unsplash.com/photo-1606800052052-a08af7148866?w=800&q=80'
+              ].map((img, idx) => (
+                <div 
+                  key={idx}
+                  className="relative h-80 rounded-lg overflow-hidden group cursor-pointer"
+                  onClick={() => onNavigate('portfolio')}
+                >
+                  <img 
+                    src={img} 
+                    alt={`Sample ${idx + 1}`}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                  />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-300"></div>
+                </div>
+              ))
+            )}
           </div>
           
           <div className="text-center mt-12">

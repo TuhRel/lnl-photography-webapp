@@ -21,7 +21,7 @@ export interface UploadProgress {
  */
 export const uploadImage = async (
   file: File,
-  folder: 'portfolio' | 'services' | 'hero' | 'about' | 'profiles',
+  folder: 'portfolio' | 'services' | 'hero' | 'about' | 'profiles' | 'sessions',
   filename?: string
 ): Promise<UploadResult> => {
   try {

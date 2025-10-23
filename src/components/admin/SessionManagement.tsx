@@ -9,11 +9,15 @@ import {
   Plus,
   Edit,
   Trash2,
-  Eye
+  Eye,
+  X,
+  Save
 } from 'lucide-react';
 import { ClientSession, User } from '../../types';
 import { collection, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
+import ImageUpload from '../common/ImageUpload';
+import MultipleImageUpload from '../common/MultipleImageUpload';
 
 const SessionManagement: React.FC = () => {
   const [sessions, setSessions] = useState<ClientSession[]>([]);
@@ -22,6 +26,8 @@ const SessionManagement: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState<'all' | 'completed' | 'upcoming' | 'processing'>('all');
   const [loading, setLoading] = useState(true);
   const [selectedSession, setSelectedSession] = useState<ClientSession | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingSession, setEditingSession] = useState<ClientSession | null>(null);
 
   // Fetch real data from Firestore with real-time updates
   useEffect(() => {
@@ -101,6 +107,62 @@ const SessionManagement: React.FC = () => {
     const matchesStatus = filterStatus === 'all' || session.status === filterStatus;
     return matchesSearch && matchesStatus;
   });
+
+  // Session editing functions
+  const handleEditSession = (session: ClientSession) => {
+    setEditingSession({ ...session });
+    setIsEditing(true);
+  };
+
+  const handleSaveSession = async () => {
+    if (!editingSession) return;
+
+    try {
+      await updateDoc(doc(db, 'sessions', editingSession.id), {
+        photos: editingSession.photos,
+        status: editingSession.status
+      });
+
+      setIsEditing(false);
+      setEditingSession(null);
+      alert('Session updated successfully!');
+    } catch (error) {
+      console.error('Error updating session:', error);
+      alert('Error updating session. Please try again.');
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditingSession(null);
+  };
+
+  const handleAddPhoto = (url: string) => {
+    if (editingSession) {
+      setEditingSession({
+        ...editingSession,
+        photos: [...(editingSession.photos || []), url]
+      });
+    }
+  };
+
+  const handleAddMultiplePhotos = (urls: string[]) => {
+    if (editingSession) {
+      setEditingSession({
+        ...editingSession,
+        photos: [...(editingSession.photos || []), ...urls]
+      });
+    }
+  };
+
+  const handleRemovePhoto = (index: number) => {
+    if (editingSession) {
+      setEditingSession({
+        ...editingSession,
+        photos: editingSession.photos.filter((_, i) => i !== index)
+      });
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -322,6 +384,7 @@ const SessionManagement: React.FC = () => {
                         <Eye className="w-4 h-4" />
                       </button>
                       <button
+                        onClick={() => handleEditSession(session)}
                         className="text-gray-600 hover:text-gray-900"
                         title="Edit Session"
                       >
@@ -362,6 +425,143 @@ const SessionManagement: React.FC = () => {
           session={selectedSession}
           onClose={() => setSelectedSession(null)}
         />
+      )}
+
+      {/* Session Edit Modal */}
+      {isEditing && editingSession && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onClick={handleCancelEdit}></div>
+
+            <div className="inline-block w-full max-w-4xl p-6 my-8 overflow-hidden text-left align-middle transition-all transform bg-white shadow-xl rounded-lg">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-medium text-gray-900">
+                  Edit Session - {editingSession.serviceName}
+                </h3>
+                <button
+                  onClick={handleCancelEdit}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Left Column - Session Info */}
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Session Status
+                    </label>
+                    <select
+                      value={editingSession.status}
+                      onChange={(e) => setEditingSession(prev => prev ? { 
+                        ...prev, 
+                        status: e.target.value as 'upcoming' | 'processing' | 'completed' 
+                      } : null)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                    >
+                      <option value="upcoming">Upcoming</option>
+                      <option value="processing">Processing</option>
+                      <option value="completed">Completed</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Session Details
+                    </label>
+                    <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+                      <p><strong>Client:</strong> {getUserDisplayName(editingSession.userId)}</p>
+                      <p><strong>Service:</strong> {editingSession.serviceName}</p>
+                      <p><strong>Date:</strong> {formatDate(editingSession.date)}</p>
+                      <p><strong>Amount:</strong> ${(editingSession.amount / 100).toFixed(2)}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Column - Photo Management */}
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Session Photos ({editingSession.photos?.length || 0})
+                    </label>
+                    
+                    {/* Add Multiple Photos */}
+                    <div className="mb-4">
+                      <MultipleImageUpload
+                        onImagesChange={handleAddMultiplePhotos}
+                        folder="sessions"
+                        placeholder="Upload multiple session photos"
+                        className="w-full"
+                        maxFiles={20}
+                      />
+                    </div>
+
+                    {/* Single Photo Upload (Alternative) */}
+                    <div className="mb-4">
+                      <p className="text-sm text-gray-600 mb-2">Or upload one photo at a time:</p>
+                      <ImageUpload
+                        currentImageUrl=""
+                        onImageChange={handleAddPhoto}
+                        folder="sessions"
+                        aspectRatio="auto"
+                        placeholder="Upload single photo"
+                        className="w-full"
+                      />
+                    </div>
+
+                    {/* Existing Photos */}
+                    {editingSession.photos && editingSession.photos.length > 0 && (
+                      <div className="grid grid-cols-2 gap-3 max-h-64 overflow-y-auto">
+                        {editingSession.photos.map((photo, index) => (
+                          <div key={index} className="relative group">
+                            <img
+                              src={photo}
+                              alt={`Session photo ${index + 1}`}
+                              className="w-full h-24 object-cover rounded-lg"
+                            />
+                            <button
+                              onClick={() => handleRemovePhoto(index)}
+                              className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                              title="Remove photo"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {(!editingSession.photos || editingSession.photos.length === 0) && (
+                      <div className="text-center py-8 text-gray-500">
+                        <Camera className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                        <p>No photos uploaded yet</p>
+                        <p className="text-sm">Upload photos using the area above</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-3 mt-8">
+                <button
+                  onClick={handleCancelEdit}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveSession}
+                  className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 flex items-center space-x-2"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>Save Changes</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -53,6 +53,7 @@ service firebase.storage {
 //   ├── about/         - About page profile images  
 //   ├── portfolio/     - Portfolio item images
 //   ├── services/      - Service showcase images
+//   ├── sessions/      - Client session photos
 //   └── profiles/      - User profile pictures
 //
 // 🔑 PERMISSIONS:

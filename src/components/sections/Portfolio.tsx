@@ -10,7 +10,7 @@ const Portfolio: React.FC = () => {
   const [portfolioItems, setPortfolioItems] = useState<PortfolioItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const categories = ['All', 'Portrait', 'Family', 'Wedding', 'Branding', 'Creative', 'Studio'];
+  const categories = ['All', 'Featured', 'Portrait', 'Family', 'Wedding', 'Branding', 'Creative', 'Studio'];
 
   useEffect(() => {
     const loadPortfolioItems = async () => {
@@ -26,7 +26,8 @@ const Portfolio: React.FC = () => {
             title: data.title || '',
             category: data.category || '',
             image: data.image || '',
-            images: data.images || []
+            images: data.images || [],
+            featured: data.featured || false
           });
         });
         
@@ -43,6 +44,8 @@ const Portfolio: React.FC = () => {
 
   const filteredItems = selectedCategory === 'All'
     ? portfolioItems
+    : selectedCategory === 'Featured'
+    ? portfolioItems.filter(item => item.featured)
     : portfolioItems.filter(item => item.category === selectedCategory);
 
   if (loading) {

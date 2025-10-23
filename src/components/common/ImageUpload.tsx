@@ -5,7 +5,7 @@ import { uploadImage, deleteImage, validateImageFile, getStoragePathFromUrl } fr
 interface ImageUploadProps {
   currentImageUrl?: string;
   onImageChange: (url: string) => void;
-  folder: 'portfolio' | 'services' | 'hero' | 'about' | 'profiles';
+  folder: 'portfolio' | 'services' | 'hero' | 'about' | 'profiles' | 'sessions';
   aspectRatio?: 'square' | 'video' | 'wide' | 'auto';
   maxWidth?: number;
   maxHeight?: number;

@@ -4,6 +4,8 @@ import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { ClientSession } from '../types';
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
 
 interface DashboardModalProps {
   isOpen: boolean;
@@ -69,6 +71,149 @@ const DashboardModal: React.FC<DashboardModalProps> = ({ isOpen, onClose }) => {
 
     fetchSessions();
   }, [currentUser, isOpen]);
+
+  // Download individual photo function - works with Firebase Storage URLs
+  const downloadPhoto = async (photoUrl: string, sessionName: string, photoIndex: number) => {
+    try {
+      console.log('🔽 Starting download for photo:', photoUrl);
+      console.log('📝 Session name:', sessionName, 'Photo index:', photoIndex);
+      
+      // Generate filename
+      const fileExtension = photoUrl.split('.').pop()?.split('?')[0] || 'jpg';
+      const fileName = `${sessionName.replace(/\s+/g, '_')}_Photo_${photoIndex + 1}.${fileExtension}`;
+      
+      // Try to fetch and download as blob first (works if CORS is configured)
+      try {
+        const response = await fetch(photoUrl);
+        if (response.ok) {
+          const blob = await response.blob();
+          const blobUrl = window.URL.createObjectURL(blob);
+          
+          const link = document.createElement('a');
+          link.href = blobUrl;
+          link.download = fileName;
+          link.style.display = 'none';
+          
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          
+          // Cleanup blob URL after a short delay
+          setTimeout(() => window.URL.revokeObjectURL(blobUrl), 100);
+          
+          console.log('✅ Download completed (blob method):', fileName);
+          return;
+        }
+      } catch (fetchError) {
+        console.log('⚠️ Blob download failed, trying direct link:', fetchError);
+      }
+      
+      // Fallback: Direct link download (may open in new tab if CORS not configured)
+      const link = document.createElement('a');
+      link.href = photoUrl;
+      link.download = fileName;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.style.display = 'none';
+      
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      console.log('✅ Download initiated (direct link):', fileName);
+      console.log('ℹ️ Note: Configure Firebase Storage CORS for better downloads');
+      
+    } catch (error) {
+      console.error('❌ Error downloading photo:', error);
+      alert('Failed to download photo. Please check CORS configuration.');
+    }
+  };
+
+  // Download all photos from a session (tries ZIP first, falls back to individual downloads)
+  const downloadAllPhotos = async (session: ClientSession) => {
+    console.log('🚀 downloadAllPhotos called with session:', session.serviceName);
+    console.log('📸 Number of photos:', session.photos?.length || 0);
+    
+    if (!session.photos || session.photos.length === 0) {
+      console.log('❌ No photos found in session');
+      alert('No photos available for download');
+      return;
+    }
+
+    // Try ZIP approach first
+    try {
+      console.log('🔽 Attempting ZIP download for session:', session.serviceName);
+      
+      // Test if we can fetch the first photo
+      const testResponse = await fetch(session.photos[0], { mode: 'cors' });
+      if (!testResponse.ok) {
+        throw new Error('CORS blocked - falling back to individual downloads');
+      }
+      
+      // If test succeeds, proceed with ZIP
+      alert(`Creating ZIP file with ${session.photos.length} photos. This may take a moment...`);
+      
+      const zip = new JSZip();
+      let successCount = 0;
+      
+      // Download each photo and add to ZIP
+      for (let i = 0; i < session.photos.length; i++) {
+        console.log(`📥 Adding photo ${i + 1}/${session.photos.length} to ZIP`);
+        
+        const response = await fetch(session.photos[i], { mode: 'cors' });
+        const blob = await response.blob();
+        const fileExtension = session.photos[i].split('.').pop()?.split('?')[0] || 'jpg';
+        const fileName = `${session.serviceName.replace(/\s+/g, '_')}_Photo_${i + 1}.${fileExtension}`;
+        
+        zip.file(fileName, blob);
+        successCount++;
+      }
+      
+      console.log('📦 Generating ZIP file...');
+      
+      // Generate and save ZIP file
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      const zipFileName = `${session.serviceName.replace(/\s+/g, '_')}_Photos.zip`;
+      saveAs(zipBlob, zipFileName);
+      
+      console.log('✅ ZIP download completed');
+      alert(`✅ Successfully downloaded all ${successCount} photos as ${zipFileName}`);
+      
+    } catch (error) {
+      console.log('❌ ZIP download failed, falling back to individual downloads:', error);
+      
+      // Fallback to individual downloads
+      try {
+        alert(`ZIP download blocked by browser security. Downloading ${session.photos.length} photos individually...`);
+        
+        let successCount = 0;
+        
+        // Download each photo individually with delays
+        for (let i = 0; i < session.photos.length; i++) {
+          try {
+            console.log(`📥 Downloading individual photo ${i + 1}/${session.photos.length}`);
+            await downloadPhoto(session.photos[i], session.serviceName, i);
+            successCount++;
+            
+            // Add delay between downloads to prevent browser blocking
+            if (i < session.photos.length - 1) {
+              console.log('⏳ Waiting 400ms before next download...');
+              await new Promise(resolve => setTimeout(resolve, 400));
+            }
+          } catch (downloadError) {
+            console.error(`❌ Failed to download photo ${i + 1}:`, downloadError);
+          }
+        }
+        
+        console.log('✅ Individual downloads completed');
+        alert(`✅ Downloaded ${successCount} photos individually to your Downloads folder`);
+        
+      } catch (fallbackError) {
+        console.error('❌ Both ZIP and individual downloads failed:', fallbackError);
+        alert('❌ Failed to download photos. Please try downloading them one by one.');
+      }
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -208,12 +353,29 @@ const DashboardModal: React.FC<DashboardModalProps> = ({ isOpen, onClose }) => {
                           </div>
                         </div>
 
-                        <button
-                          onClick={() => setSelectedSession(session.id)}
-                          className="px-6 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
-                        >
-                          View Photos
-                        </button>
+                        <div className="flex space-x-3">
+                          <button
+                            onClick={() => setSelectedSession(session.id)}
+                            className="px-6 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
+                          >
+                            View Photos
+                          </button>
+                          {session.photos.length > 0 && (
+                            <button
+                              onClick={(e) => {
+                                console.log('🖱️ Download All button clicked for session:', session.serviceName);
+                                e.preventDefault();
+                                e.stopPropagation();
+                                downloadAllPhotos(session);
+                              }}
+                              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+                              title="Download all photos"
+                            >
+                              <Download className="w-4 h-4" />
+                              <span>Download All</span>
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -247,7 +409,15 @@ const DashboardModal: React.FC<DashboardModalProps> = ({ isOpen, onClose }) => {
               </div>
 
               <div className="mb-6">
-                <button className="flex items-center space-x-2 px-6 py-3 bg-white text-gray-900 rounded-lg hover:bg-gray-100 transition-colors">
+                <button 
+                  onClick={(e) => {
+                    console.log('🖱️ Download All Photos button clicked in modal');
+                    e.preventDefault();
+                    e.stopPropagation();
+                    downloadAllPhotos(selectedSessionData);
+                  }}
+                  className="flex items-center space-x-2 px-6 py-3 bg-white text-gray-900 rounded-lg hover:bg-gray-100 transition-colors"
+                >
                   <Download className="w-5 h-5" />
                   <span>Download All Photos</span>
                 </button>
@@ -257,16 +427,34 @@ const DashboardModal: React.FC<DashboardModalProps> = ({ isOpen, onClose }) => {
                 {selectedSessionData.photos.map((photo, idx) => (
                   <div
                     key={idx}
-                    className="relative aspect-square rounded-lg overflow-hidden cursor-pointer group"
-                    onClick={() => setSelectedPhoto(photo)}
+                    className="relative aspect-square rounded-lg overflow-hidden group"
                   >
                     <img
                       src={photo}
                       alt={`Photo ${idx + 1}`}
-                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110 cursor-pointer"
+                      onClick={() => setSelectedPhoto(photo)}
                     />
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-300 flex items-center justify-center">
-                      <Download className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-300 flex items-center justify-center space-x-4">
+                      <button
+                        onClick={() => setSelectedPhoto(photo)}
+                        className="p-2 bg-white/20 hover:bg-white/30 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-300"
+                        title="View full size"
+                      >
+                        <ImageIcon className="w-6 h-6 text-white" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          console.log('🖱️ Individual photo download clicked, index:', idx);
+                          e.preventDefault();
+                          e.stopPropagation();
+                          downloadPhoto(photo, selectedSessionData.serviceName, idx);
+                        }}
+                        className="p-2 bg-white/20 hover:bg-white/30 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-300"
+                        title="Download photo"
+                      >
+                        <Download className="w-6 h-6 text-white" />
+                      </button>
                     </div>
                   </div>
                 ))}

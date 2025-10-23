@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Firebase Storage CORS</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; }
+        input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        button {
+            background: #4285f4;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px 10px 0;
+        }
+        button:hover {
+            background: #3367d6;
+        }
+        .success {
+            background: #34a853;
+            padding: 15px;
+            border-radius: 4px;
+            color: white;
+            margin: 10px 0;
+        }
+        .error {
+            background: #ea4335;
+            padding: 15px;
+            border-radius: 4px;
+            color: white;
+            margin: 10px 0;
+        }
+        .info {
+            background: #fbbc04;
+            padding: 15px;
+            border-radius: 4px;
+            color: #333;
+            margin: 10px 0;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-left: 4px solid #4285f4;
+            border-radius: 4px;
+        }
+        pre {
+            background: #263238;
+            color: #aed581;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Test Firebase Storage CORS</h1>
+        <p>Use this tool to verify that CORS is properly configured for your Firebase Storage.</p>
+        
+        <h3>Step 1: Get a Test Image URL</h3>
+        <p>Paste a URL from your Firebase Storage (from your sessions):</p>
+        <input type="text" id="imageUrl" placeholder="https://firebasestorage.googleapis.com/...">
+        
+        <button onclick="testCORS()">Test CORS</button>
+        <button onclick="testDownload()">Test Download</button>
+        
+        <div id="result"></div>
+        
+        <hr style="margin: 30px 0;">
+        
+        <h3>How to Fix CORS:</h3>
+        <div class="info">
+            <strong>Quickest Method: Google Cloud Console</strong>
+            <ol>
+                <li>Go to: <a href="https://console.cloud.google.com/storage/browser" target="_blank">Google Cloud Storage</a></li>
+                <li>Select bucket: <code>lnl-photography.firebasestorage.app</code></li>
+                <li>Click "Configuration" → "Edit CORS"</li>
+                <li>Paste this config:</li>
+            </ol>
+            <pre>[{"origin": ["*"], "method": ["GET", "HEAD"], "maxAgeSeconds": 3600}]</pre>
+        </div>
+    </div>
+
+    <script>
+        async function testCORS() {
+            const url = document.getElementById('imageUrl').value.trim();
+            const resultDiv = document.getElementById('result');
+            
+            if (!url) {
+                resultDiv.innerHTML = '<div class="error">❌ Please enter an image URL</div>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<div class="info">⏳ Testing CORS configuration...</div>';
+            
+            try {
+                const response = await fetch(url, {
+                    method: 'GET',
+                    mode: 'cors'
+                });
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            ✅ <strong>CORS is Working!</strong><br>
+                            Successfully fetched image (${(blob.size / 1024).toFixed(2)} KB)<br>
+                            Status: ${response.status} ${response.statusText}
+                        </div>
+                        <div class="result">
+                            <strong>Response Headers:</strong><br>
+                            Access-Control-Allow-Origin: ${response.headers.get('access-control-allow-origin') || 'Not set'}<br>
+                            Content-Type: ${response.headers.get('content-type')}
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            ❌ <strong>HTTP Error</strong><br>
+                            Status: ${response.status} ${response.statusText}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        ❌ <strong>CORS is NOT Configured Properly</strong><br>
+                        Error: ${error.message}<br><br>
+                        This means Firebase Storage is blocking fetch requests from this origin.
+                    </div>
+                    <div class="info" style="margin-top: 15px;">
+                        <strong>To Fix:</strong><br>
+                        1. Go to Google Cloud Console<br>
+                        2. Configure CORS as shown above<br>
+                        3. Wait 1-2 minutes<br>
+                        4. Test again
+                    </div>
+                `;
+            }
+        }
+        
+        async function testDownload() {
+            const url = document.getElementById('imageUrl').value.trim();
+            const resultDiv = document.getElementById('result');
+            
+            if (!url) {
+                resultDiv.innerHTML = '<div class="error">❌ Please enter an image URL</div>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<div class="info">⏳ Testing download...</div>';
+            
+            try {
+                const response = await fetch(url);
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const blobUrl = window.URL.createObjectURL(blob);
+                    
+                    const link = document.createElement('a');
+                    link.href = blobUrl;
+                    link.download = 'test_download.jpg';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    
+                    window.URL.revokeObjectURL(blobUrl);
+                    
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            ✅ <strong>Download Successful!</strong><br>
+                            Check your Downloads folder for 'test_download.jpg'
+                        </div>
+                    `;
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        ❌ <strong>Download Failed</strong><br>
+                        Error: ${error.message}<br><br>
+                        CORS must be configured for downloads to work properly.
+                    </div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>
